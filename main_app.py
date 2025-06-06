@@ -2,12 +2,13 @@ import streamlit as st
 from gate_types import AND, OR, NOT, NAND
 from functions import get_available_biomarkers, get_available_channels, get_qd_for_biomarker
 from model_utils import recommend_qds
+from ai_utils import get_ai_recommendation
 
-st.set_page_config(page_title="NanoLogix Quantum Dot Logic Demo", page_icon="🧬", layout="centered")
+st.set_page_config(page_title="Dottie Quantum Dot Logic Demo", page_icon="🧬", layout="centered")
 
-st.title("🧬 NanoLogix: Quantum Dot Logic for Breast Cancer")
+st.title("🧬 Dottie: Quantum Dot Logic for Breast Cancer")
 st.markdown("""
-Welcome to NanoLogix!  
+Welcome to Dottie!  
 Design, simulate, and visualize quantum dot logic circuits for breast cancer detection.  
 Select your biomarkers, logic gate, and see which quantum dots light up!  
 """)
@@ -47,15 +48,6 @@ for biomarker in selected_biomarkers:
     detected = st.checkbox(f"Is {biomarker} detected?", value=True)
     input_signals.append(int(detected))
 
-# Compute logic output
-if logic_gate_name == "NOT":
-    # NOT gate only works on first input
-    output = logic_gate_func(input_signals[0]) if input_signals else None
-else:
-    output = logic_gate_func(input_signals) if input_signals else None
-
-st.markdown(f"### 🎛️ Logic Gate Output: :orange[{output}]")
-
 # QD Recommendations
 st.header("✨ Recommended Quantum Dots")
 require_ph_sensitive = st.checkbox("Require pH-sensitive QDs?", value=False)
@@ -64,24 +56,6 @@ preferred_colors = st.multiselect(
     ["blue", "green", "yellow-green", "yellow", "orange", "red-orange", "red", "NIR", "BRET"]
 )
 
-# Get AI recommendations
-recommendations = recommend_qds(
-    selected_biomarkers,
-    biomarker_channels,
-    require_ph_sensitive,
-    preferred_colors if preferred_colors else None
-)
-
-for rec in recommendations:
-    st.markdown(
-        f"**🔹 {rec['biomarker']}**: "
-        f"{rec['composition']} QD, "
-        f":rainbow[{rec['color']}] "
-        f"({rec['emission_nm']} nm)  \n"
-        f"Surface: {', '.join(rec['surface']) if rec['surface'] else 'N/A'}  \n"
-        f"Notes: {rec['notes']}"
-    )
-
 # Cute footer
 st.markdown("---")
 st.markdown(
@@ -89,3 +63,42 @@ st.markdown(
     "✨🧬🦋 Made with <span style='color:pink;'>love</span> for breast cancer research! 🦋🧬✨"
     "</div>", unsafe_allow_html=True
 )
+
+if st.button("🔬 Run Logic Circuit"):
+    # Compute logic output
+    if logic_gate_name == "NOT":
+        # NOT gate only works on first input
+        output = logic_gate_func(input_signals[0]) if input_signals else None
+    else:
+        output = logic_gate_func(input_signals) if input_signals else None
+
+    # Show logic gate output
+    st.markdown(f"### 🎛️ Logic Gate Output: :orange[{output}]")
+
+    # Get and show QD recommendations
+    recommendations = recommend_qds(
+        selected_biomarkers,
+        biomarker_channels,
+        require_ph_sensitive,
+        preferred_colors if preferred_colors else None
+    )
+
+    for rec in recommendations:
+        st.markdown(
+            f"**🔹 {rec['biomarker']}**: "
+            f"{rec['composition']} QD, "
+            f":rainbow[{rec['color']}] "
+            f"({rec['emission_nm']} nm)  \n"
+            f"Surface: {', '.join(rec['surface']) if rec['surface'] else 'N/A'}  \n"
+            f"Notes: {rec['notes']}"
+        )
+        
+    # Get and show AI analysis
+    st.markdown("### 🤖 AI Analysis")
+    ai_analysis = get_ai_recommendation(
+        selected_biomarkers,
+        logic_gate_name,
+        input_signals,
+        output
+    )
+    st.markdown(ai_analysis)
