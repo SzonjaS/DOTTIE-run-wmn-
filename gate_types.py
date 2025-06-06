@@ -6,3 +6,6 @@ def OR(inputs):
 
 def NOT(input_signal):
     return int(not input_signal)
+
+def NAND(inputs):
+    return int(NOT(AND(inputs)))
