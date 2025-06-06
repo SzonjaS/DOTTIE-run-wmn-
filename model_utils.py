@@ -1,81 +1,66 @@
-from transformers import AutoModelForCausalLM, AutoTokenizer, GPT2LMHeadModel, GPT2Tokenizer
-import torch
-import os
+from functions import get_qd_for_biomarker
 
-def load_mistral_model(token=None):
+def recommend_qds(biomarkers, biomarker_channels, require_ph_sensitive=False, preferred_colors=None):
     """
-    Load language model and tokenizer from HuggingFace.
+    Function to recommend quantum dots based on biomarker selection and preferences.
     
     Args:
-        token (str, optional): HuggingFace access token
-        
+        biomarkers (list): List of selected biomarkers
+        biomarker_channels (dict): Dictionary mapping biomarkers to their selected channels
+        require_ph_sensitive (bool): Whether to require pH-sensitive QDs
+        preferred_colors (list): Optional list of preferred QD colors
+    
     Returns:
-        tuple: (model, tokenizer)
+        list: List of recommended QD specifications
     """
-    print("Loading local GPT-2 model...")
+    recommendations = []
     
-    try:
-        # Try to load the model directly (offline mode)
-        tokenizer = GPT2Tokenizer.from_pretrained('gpt2', local_files_only=True)
-        model = GPT2LMHeadModel.from_pretrained('gpt2', local_files_only=True)
-    except Exception as e:
-        print("Model not found locally, downloading from Hugging Face...")
-        # If not available locally, download it
-        tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
-        model = GPT2LMHeadModel.from_pretrained('gpt2')
-        # Save the model locally for future use
-        tokenizer.save_pretrained('gpt2')
-        model.save_pretrained('gpt2')
+    for biomarker in biomarkers:
+        # Get the selected channel for this biomarker, default to 'visible' if not specified
+        channel = biomarker_channels.get(biomarker, 'visible')
+        
+        # Get QD specifications for this biomarker and channel
+        qd_specs = get_qd_for_biomarker(biomarker, channel)
+        
+        if qd_specs:
+            # Apply filters based on preferences
+            if require_ph_sensitive and not qd_specs['pH_sensitive']:
+                continue
+                
+            if preferred_colors and qd_specs['color'] not in preferred_colors:
+                continue
+            
+            # Add to recommendations
+            recommendations.append({
+                'biomarker': biomarker,
+                'composition': qd_specs['composition'],
+                'color': qd_specs['color'],
+                'emission_nm': qd_specs['emission_nm'],
+                'surface': qd_specs['surface'],
+                'notes': qd_specs['notes']
+            })
     
-    return model, tokenizer
-
-def generate_response(model, tokenizer, prompt, max_length=100):
-    """
-    Generate a response using the model.
-    
-    Args:
-        model: The language model
-        tokenizer: The tokenizer
-        prompt (str): The input prompt
-        max_length (int): Maximum length of the response
-        
-    Returns:
-        str: Generated response
-    """
-    try:
-        # Add context about quantum dots to the prompt
-        context = "In the context of quantum dots and biomarkers: "
-        full_prompt = context + prompt
-        
-        # Encode the prompt
-        inputs = tokenizer(full_prompt, return_tensors="pt", padding=True, truncation=True)
-        
-        # Generate response
-        outputs = model.generate(
-            inputs["input_ids"],
-            max_length=max_length,
-            num_return_sequences=1,
-            temperature=0.7,
-            pad_token_id=tokenizer.eos_token_id
-        )
-        
-        # Decode and return the response
-        response = tokenizer.decode(outputs[0], skip_special_tokens=True)
-        # Remove the context from the response
-        response = response.replace(context, "").strip()
-        return response
-    except Exception as e:
-        return f"Error generating response: {str(e)}"
+    return recommendations
 
 # Example usage
 if __name__ == "__main__":
-    # Load model and tokenizer
-    model, tokenizer = load_mistral_model()
+    # Example biomarkers and channels
+    biomarkers = ["HER2", "ER"]
+    biomarker_channels = {"HER2": "visible", "ER": "visible"}
     
-    # Example prompt using your quantum dot data
-    prompt = "What quantum dots are available for HER2 detection?"
+    # Example preferences
+    require_ph_sensitive = True
+    preferred_colors = ["red"]
     
-    # Generate response
-    response = generate_response(model, tokenizer, prompt)
-    print(f"\nPrompt: {prompt}")
-    print(f"Response: {response}") 
+    # Generate recommendations
+    recommendations = recommend_qds(biomarkers, biomarker_channels, require_ph_sensitive, preferred_colors)
+    
+    # Print recommendations
+    for recommendation in recommendations:
+        print(f"Biomarker: {recommendation['biomarker']}")
+        print(f"Composition: {recommendation['composition']}")
+        print(f"Color: {recommendation['color']}")
+        print(f"Emission nm: {recommendation['emission_nm']}")
+        print(f"Surface: {recommendation['surface']}")
+        print(f"Notes: {recommendation['notes']}")
+        print("\n") 
